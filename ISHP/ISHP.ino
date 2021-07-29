@@ -45,6 +45,7 @@ void setup() {
 
   //EINK
   display.begin(THINKINK_MONO);
+  display.clearBuffer();
 }
 
 void loop() {
@@ -52,6 +53,7 @@ void loop() {
   // Gets the current date and time, and writes it to the Eink display.
   String currentTime = getDateTimeAsString();
 
+  drawText("The Current Time/Date is", EPD_BLACK, 2, 0, 0);
 
   // writes the current time on the bottom half of the display (y is height)
   drawText(currentTime, EPD_BLACK, 2, 0, 75);
@@ -63,10 +65,10 @@ void loop() {
 
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
+  display.clearBuffer();
 }
 
 void drawText(String text, uint16_t color, int textSize, int x, int y) {
-  display.clearBuffer();
   display.setCursor(x, y);
   display.setTextColor(color);
   display.setTextSize(textSize);
