@@ -26,7 +26,7 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial) {
     delay(10);
   }
@@ -53,7 +53,7 @@ void loop() {
   // Gets the current date and time, and writes it to the Eink display.
   String currentTime = getDateTimeAsString();
 
-  drawText("The Current Time/Date is", EPD_BLACK, 2, 0, 0);
+  drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
 
   // writes the current time on the bottom half of the display (y is height)
   drawText(currentTime, EPD_BLACK, 2, 0, 75);
@@ -74,7 +74,7 @@ void drawText(String text, uint16_t color, int textSize, int x, int y) {
   display.setTextSize(textSize);
   display.setTextWrap(true);
   display.print(text);
-  display.display(); // Needed to tell screen to update
+
 }
 
 String getDateTimeAsString() {
