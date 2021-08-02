@@ -34,6 +34,10 @@ ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 
+// Soil Moisture
+int moistureValue = 0; //value for storing moisture value
+int soilPin = 12;//Declare a variable for the soil moisture sensor
+
 
 void setup() {
   Serial.begin(9600);
@@ -182,4 +186,11 @@ void logEvent(String dataToLog) {
   Serial.print(rightNow.second(), DEC);
   Serial.print(",");
   Serial.println(dataToLog);
+}
+
+//This is a function used to get the soil moisture content
+int readSoil()
+{
+  moistureValue = analogRead(soilPin);//Read the SIG value form sensor
+  return moistureValue;//send current moisture value
 }
