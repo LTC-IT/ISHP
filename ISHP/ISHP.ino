@@ -81,9 +81,11 @@ void loop() {
 
   // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
   display.drawLine(0, 50, 250, 50, EPD_BLACK);
+  
+
+  int moisture = readSoil();
+  drawText(String(moisture), EPD_BLACK, 2, 0, 100);
   display.display();
-
-
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
   display.clearBuffer();
