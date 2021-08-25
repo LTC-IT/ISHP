@@ -38,7 +38,6 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 int moistureValue = 0; //value for storing moisture value
 int soilPin = 12;//Declare a variable for the soil moisture sensor
 
-
 void setup() {
   Serial.begin(9600);
   while (!Serial) {
@@ -87,6 +86,9 @@ void loop() {
   int moisture = readSoil();
   drawText(String(moisture), EPD_BLACK, 2, 0, 100);
   display.display();
+
+  waterPlant(moisture);
+  
   logEvent("Updating the EPD");
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
@@ -135,6 +137,7 @@ void setupSD() {
     Serial.println("Card Mount Failed");
     return;
   }
+
   uint8_t cardType = SD.cardType();
 
   if (cardType == CARD_NONE) {
@@ -198,4 +201,15 @@ int readSoil()
 {
   moistureValue = analogRead(soilPin);//Read the SIG value form sensor
   return moistureValue;//send current moisture value
+}
+
+void waterPlant(int moistureValue) {
+  /*
+   * Write a function which takes the moisture value, 
+   * and if it's below a certain value, turns the pump on. 
+   * The function is to be called waterPlant() which will 
+   * take the moisture value as an argument, and return no value.
+   */
+
+   
 }
