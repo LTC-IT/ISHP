@@ -56,7 +56,7 @@ void setup() {
   }
 
   // The following line can be uncommented if the time needs to be reset.
-//  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
   rtc.start();
 
@@ -88,7 +88,7 @@ void loop() {
   display.display();
 
   waterPlant(moisture);
-  
+
   logEvent("Updating the EPD");
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
@@ -145,7 +145,7 @@ void setupSD() {
     return;
   }
   Serial.println("SD Started");
-//  delay(1000);
+  //  delay(1000);
 }
 
 void logEvent(String dataToLog) {
@@ -205,11 +205,17 @@ int readSoil()
 
 void waterPlant(int moistureValue) {
   /*
-   * Write a function which takes the moisture value, 
-   * and if it's below a certain value, turns the pump on. 
-   * The function is to be called waterPlant() which will 
-   * take the moisture value as an argument, and return no value.
-   */
+     Write a function which takes the moisture value,
+     and if it's below a certain value, turns the pump on.
+     The function is to be called waterPlant() which will
+     take the moisture value as an argument, and return no value.
+  */
+  if (int moistureValue < 1000 ) {
+    // motor/pump on
+    myMotor->run(FORWARD); // May need to change to BACKWARD
+  } else {
+    // motor/pump off
+    myMotor->run(RELEASE);
+  }
 
-   
 }
