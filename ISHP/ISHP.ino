@@ -14,7 +14,7 @@
 #include <ESPmDNS.h>
 #include "wifiConfig.h"
 
-String loginIndex, serverIndex;
+String homepage, dashboard;
 WebServer server(80);
 
 // RTC
