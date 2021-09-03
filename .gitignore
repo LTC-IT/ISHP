@@ -1,3 +1,6 @@
 
 .DS_Store
 ISHP/wifiConfig.h
+ISHP/wifiConfig.h
+*.h
+ISHP/wifiConfig.h

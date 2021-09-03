@@ -7,6 +7,16 @@
   MIT license, all text above must be included in any redistribution
  ****************************************************/
 
+// Wifi
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include "wifiConfig.h"
+
+String loginIndex, serverIndex;
+WebServer server(80);
+
 // RTC
 #include "RTClib.h"
 
@@ -36,7 +46,7 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 
 // Soil Moisture
 int moistureValue = 0; //value for storing moisture value
-int soilPin = 12;//Declare a variable for the soil moisture sensor
+int soilPin = A2;//Declare a variable for the soil moisture sensor
 
 void setup() {
   Serial.begin(9600);
@@ -47,6 +57,47 @@ void setup() {
 
   // SD Card
   setupSD();
+
+  // Webserver
+
+  // Connect to WiFi network
+  WiFi.begin(ssid, password);
+  Serial.println("");
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  loadHTML();
+
+  /*use mdns for host name resolution*/
+  if (!MDNS.begin(host)) { //http://esp32.local
+    Serial.println("Error setting up MDNS responder!");
+    while (1) {
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started");
+  /*return index page which is stored in serverIndex */
+
+  server.on("/", HTTP_GET, []() {
+    Serial.println("Index");
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", loginIndex);
+  });
+  server.on("/serverIndex", HTTP_GET, []() {
+    Serial.println("serverIndex");
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", serverIndex);
+  });
+  server.begin();
+
 
   // RTC
   if (! rtc.begin()) {
@@ -70,7 +121,12 @@ void setup() {
 }
 
 void loop() {
+  server.handleClient();
 
+  int moisture = readSoil();
+  waterPlant(moisture);
+
+  /*
   // Gets the current date and time, and writes it to the Eink display.
   String currentTime = getDateTimeAsString();
 
@@ -82,17 +138,14 @@ void loop() {
   // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
   display.drawLine(0, 50, 250, 50, EPD_BLACK);
 
-
-  int moisture = readSoil();
   drawText(String(moisture), EPD_BLACK, 2, 0, 100);
   display.display();
-
-  waterPlant(moisture);
 
   logEvent("Updating the EPD");
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
   display.clearBuffer();
+  */
 }
 
 void drawText(String text, uint16_t color, int textSize, int x, int y) {
@@ -133,7 +186,7 @@ String getDateTimeAsString() {
 
 
 void setupSD() {
-  if (!SD.begin(33)) {
+  if (!SD.begin()) {
     Serial.println("Card Mount Failed");
     return;
   }
@@ -210,7 +263,7 @@ void waterPlant(int moistureValue) {
      The function is to be called waterPlant() which will
      take the moisture value as an argument, and return no value.
   */
-  if (int moistureValue < 1000 ) {
+  if (moistureValue < 1000 ) {
     // motor/pump on
     myMotor->run(FORWARD); // May need to change to BACKWARD
   } else {
@@ -218,4 +271,29 @@ void waterPlant(int moistureValue) {
     myMotor->run(RELEASE);
   }
 
+}
+
+String readFile(fs::FS &fs, const char * path) {
+  Serial.printf("Reading file: %s\n", path);
+  char c;
+  String tempHTML = "";
+
+  File file = fs.open(path);
+  if (!file) {
+    Serial.print("Failed to open file for reading: ");
+    Serial.println(path);
+    return "";
+  }
+
+  while (file.available()) {
+    c = file.read();
+    tempHTML += c;
+  }
+  file.close();
+  return tempHTML;
+}
+
+void loadHTML() {
+  serverIndex = readFile(SD, "/serverIndex.html");
+  loginIndex = readFile(SD, "/loginIndex.html");
 }
