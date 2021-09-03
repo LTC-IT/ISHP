@@ -87,14 +87,12 @@ void setup() {
   /*return index page which is stored in serverIndex */
 
   server.on("/", HTTP_GET, []() {
-    Serial.println("Index");
     server.sendHeader("Connection", "close");
-    server.send(200, "text/html", loginIndex);
+    server.send(200, "text/html", homepage);
   });
-  server.on("/serverIndex", HTTP_GET, []() {
-    Serial.println("serverIndex");
+  server.on("/dashboard", HTTP_GET, []() {
     server.sendHeader("Connection", "close");
-    server.send(200, "text/html", serverIndex);
+    server.send(200, "text/html", dashboard);
   });
   server.begin();
 
@@ -294,6 +292,6 @@ String readFile(fs::FS &fs, const char * path) {
 }
 
 void loadHTML() {
-  serverIndex = readFile(SD, "/serverIndex.html");
-  loginIndex = readFile(SD, "/loginIndex.html");
+  homepage = readFile(SD, "/homepage.html");
+  dashboard = readFile(SD, "/dashboard.html");
 }
