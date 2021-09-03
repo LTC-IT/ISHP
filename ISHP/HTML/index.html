@@ -6,9 +6,10 @@
     <script>
         function check(form) {
             if (form.username.value == 'admin' && form.password.value == 'admin') {
-                window.open('/serverIndex')
+                window.open('/dashboard');
+
             } else {
-                alert('Error Password or Username')/*displays error message*/
+                alert('Error Password or Username');/*displays error message*/
             }
         }
     </script>
@@ -150,7 +151,7 @@
         <h2 style="text-align: center">ISHP Login Page</h2>
         <input type="text" placeholder="Username" id="username">
         <input type="password" placeholder="password" id="password">
-        <a href="forgot.html" class="forgot">forgot password?</a>
+        <a href="/forgot" class="forgot">forgot password?</a>
         <input type="submit" onclick="check(check(this.form))" value="Sign In">
     </div>
     <div class="shadow"></div>

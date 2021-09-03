@@ -14,7 +14,7 @@
 #include <ESPmDNS.h>
 #include "wifiConfig.h"
 
-String homepage, dashboard;
+String homepage, dashboard, forgot;
 WebServer server(80);
 
 // RTC
@@ -26,6 +26,7 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 // SD Card - Adalogger
 #include "FS.h"
 #include "SD.h"
+#include "SPI.h"
 
 // EINK
 #include "Adafruit_ThinkInk.h"
@@ -56,7 +57,20 @@ void setup() {
   delay(1000);
 
   // SD Card
-  setupSD();
+//  setupSD();
+  if (!SD.begin()) {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return;
+  }
+  Serial.println("SD Started");
+ 
 
   // Webserver
 
@@ -94,6 +108,10 @@ void setup() {
     server.sendHeader("Connection", "close");
     server.send(200, "text/html", dashboard);
   });
+  server.on("/forgot", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", forgot);
+  });
   server.begin();
 
 
@@ -101,7 +119,7 @@ void setup() {
   if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
     Serial.flush();
-    abort();
+    //    abort();
   }
 
   // The following line can be uncommented if the time needs to be reset.
@@ -125,24 +143,24 @@ void loop() {
   waterPlant(moisture);
 
   /*
-  // Gets the current date and time, and writes it to the Eink display.
-  String currentTime = getDateTimeAsString();
+    // Gets the current date and time, and writes it to the Eink display.
+    String currentTime = getDateTimeAsString();
 
-  drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
+    drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
 
-  // writes the current time on the bottom half of the display (y is height)
-  drawText(currentTime, EPD_BLACK, 2, 0, 75);
+    // writes the current time on the bottom half of the display (y is height)
+    drawText(currentTime, EPD_BLACK, 2, 0, 75);
 
-  // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
-  display.drawLine(0, 50, 250, 50, EPD_BLACK);
+    // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
+    display.drawLine(0, 50, 250, 50, EPD_BLACK);
 
-  drawText(String(moisture), EPD_BLACK, 2, 0, 100);
-  display.display();
+    drawText(String(moisture), EPD_BLACK, 2, 0, 100);
+    display.display();
 
-  logEvent("Updating the EPD");
-  // waits 180 seconds (3 minutes) as per guidelines from adafruit.
-  delay(180000);
-  display.clearBuffer();
+    logEvent("Updating the EPD");
+    // waits 180 seconds (3 minutes) as per guidelines from adafruit.
+    delay(180000);
+    display.clearBuffer();
   */
 }
 
@@ -292,6 +310,7 @@ String readFile(fs::FS &fs, const char * path) {
 }
 
 void loadHTML() {
-  homepage = readFile(SD, "/homepage.html");
+  homepage = readFile(SD, "/index.html");
   dashboard = readFile(SD, "/dashboard.html");
+  forgot = readFile(SD, "/forgot.html");
 }
