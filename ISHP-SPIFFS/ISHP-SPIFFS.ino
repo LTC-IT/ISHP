@@ -1,4 +1,4 @@
-/*
+Res/*
    Test code using the SPIFFS partition instead of SD card for the ISHP.
 
    Need to install tool from: https://github.com/me-no-dev/arduino-esp32fs-plugin
@@ -141,7 +141,7 @@ void loop() {
 
 void logEvent(String dataToLog) {
   /*
-     Log entries to a file on an SD card.
+     Log entries to a file stored in SPIFFS partition on the ESP32.
   */
   // Get the updated/current time
   DateTime rightNow = rtc.now();

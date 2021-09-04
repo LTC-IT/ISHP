@@ -73,11 +73,11 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("html");
+    Serial.println("index");
     request->send(SPIFFS, "/index.html", "text/html");
   });
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("html");
+    Serial.println("dashboard");
     request->send(SPIFFS, "/dashbo  ard.html", "text/html");
   });
   server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -222,7 +222,7 @@ void waterPlant(int moistureValue) {
 
 }
 
-
+//SPIFFS File Functions
 void readFile(fs::FS &fs, const char * path) {
   Serial.printf("Reading file: %s\r\n", path);
 
