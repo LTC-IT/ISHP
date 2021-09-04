@@ -7,15 +7,15 @@
   MIT license, all text above must be included in any redistribution
  ****************************************************/
 
-// Wifi
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include "wifiConfig.h"
 
-String homepage, dashboard, forgot;
-WebServer server(80);
+#define FORMAT_SPIFFS_IF_FAILED true
+
+// Wifi & Webserver
+#include "WiFi.h"
+#include "SPIFFS.h"
+#include <ESPAsyncWebServer.h>
+#include "wifiConfig.h"
+AsyncWebServer server(80);
 
 // RTC
 #include "RTClib.h"
@@ -23,10 +23,6 @@ WebServer server(80);
 RTC_PCF8523 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-// SD Card - Adalogger
-#include "FS.h"
-#include "SD.h"
-#include "SPI.h"
 
 // EINK
 #include "Adafruit_ThinkInk.h"
@@ -56,62 +52,39 @@ void setup() {
   }
   delay(1000);
 
-  // SD Card
-//  setupSD();
-  if (!SD.begin()) {
-    Serial.println("Card Mount Failed");
+
+  if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)) {
+    // Follow instructions in README and install
+    // https://github.com/me-no-dev/arduino-esp32fs-plugin
+    Serial.println("SPIFFS Mount Failed");
     return;
   }
 
-  uint8_t cardType = SD.cardType();
-
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return;
-  }
-  Serial.println("SD Started");
- 
-
-  // Webserver
-
-  // Connect to WiFi network
   WiFi.begin(ssid, password);
-  Serial.println("");
 
-  // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1000);
+    Serial.println("Connecting to WiFi..");
   }
   Serial.println();
   Serial.print("Connected to ");
   Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  loadHTML();
 
-  /*use mdns for host name resolution*/
-  if (!MDNS.begin(host)) { //http://esp32.local
-    Serial.println("Error setting up MDNS responder!");
-    while (1) {
-      delay(1000);
-    }
-  }
-  Serial.println("mDNS responder started");
-  /*return index page which is stored in serverIndex */
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    Serial.println("html");
+    request->send(SPIFFS, "/index.html", "text/html");
+  });
+  server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest * request) {
+    Serial.println("html");
+    request->send(SPIFFS, "/dashbo  ard.html", "text/html");
+  });
+  server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
+    Serial.println("output");
+    request->send(SPIFFS, "/logEvents.csv", "text/html");
+  });
 
-  server.on("/", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", homepage);
-  });
-  server.on("/dashboard", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", dashboard);
-  });
-  server.on("/forgot", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", forgot);
-  });
   server.begin();
 
 
@@ -137,31 +110,29 @@ void setup() {
 }
 
 void loop() {
-  server.handleClient();
-
   int moisture = readSoil();
   waterPlant(moisture);
 
-  /*
-    // Gets the current date and time, and writes it to the Eink display.
-    String currentTime = getDateTimeAsString();
 
-    drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
+  // Gets the current date and time, and writes it to the Eink display.
+  String currentTime = getDateTimeAsString();
 
-    // writes the current time on the bottom half of the display (y is height)
-    drawText(currentTime, EPD_BLACK, 2, 0, 75);
+  drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
 
-    // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
-    display.drawLine(0, 50, 250, 50, EPD_BLACK);
+  // writes the current time on the bottom half of the display (y is height)
+  drawText(currentTime, EPD_BLACK, 2, 0, 75);
 
-    drawText(String(moisture), EPD_BLACK, 2, 0, 100);
-    display.display();
+  // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
+  display.drawLine(0, 50, 250, 50, EPD_BLACK);
 
-    logEvent("Updating the EPD");
-    // waits 180 seconds (3 minutes) as per guidelines from adafruit.
-    delay(180000);
-    display.clearBuffer();
-  */
+  drawText(String(moisture), EPD_BLACK, 2, 0, 100);
+  display.display();
+
+  logEvent("Updating the EPD");
+  // waits 180 seconds (3 minutes) as per guidelines from adafruit.
+  delay(180000);
+  display.clearBuffer();
+
 }
 
 void drawText(String text, uint16_t color, int textSize, int x, int y) {
@@ -201,69 +172,31 @@ String getDateTimeAsString() {
 }
 
 
-void setupSD() {
-  if (!SD.begin()) {
-    Serial.println("Card Mount Failed");
-    return;
-  }
 
-  uint8_t cardType = SD.cardType();
-
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return;
-  }
-  Serial.println("SD Started");
-  //  delay(1000);
-}
 
 void logEvent(String dataToLog) {
   /*
-     Log entries to a file on an SD card.
+     Log entries to a file stored in SPIFFS partition on the ESP32.
   */
   // Get the updated/current time
   DateTime rightNow = rtc.now();
+  char csvReadableDate[25];
+  sprintf(csvReadableDate, "%02d,%02d,%02d,%02d,%02d,%02d,",  rightNow.year(), rightNow.month(), rightNow.day(), rightNow.hour(), rightNow.minute(), rightNow.second());
 
-  // Open the log file
-  File logFile = SD.open("/logEvents.csv", FILE_APPEND);
-  if (!logFile) {
-    Serial.print("Couldn't create log file");
-    abort();
-  }
+  String logTemp = csvReadableDate + dataToLog + "\n"; // Add the data to log onto the end of the date/time
 
-  // Log the event with the date, time and data
-  logFile.print(rightNow.year(), DEC);
-  logFile.print(",");
-  logFile.print(rightNow.month(), DEC);
-  logFile.print(",");
-  logFile.print(rightNow.day(), DEC);
-  logFile.print(",");
-  logFile.print(rightNow.hour(), DEC);
-  logFile.print(",");
-  logFile.print(rightNow.minute(), DEC);
-  logFile.print(",");
-  logFile.print(rightNow.second(), DEC);
-  logFile.print(",");
-  logFile.print(dataToLog);
+  const char * logEntry = logTemp.c_str(); //convert the logtemp to a char * variable
 
-  // End the line with a return character.
-  logFile.println();
-  logFile.close();
-  Serial.print("Event Logged: ");
-  Serial.print(rightNow.year(), DEC);
-  Serial.print(",");
-  Serial.print(rightNow.month(), DEC);
-  Serial.print(",");
-  Serial.print(rightNow.day(), DEC);
-  Serial.print(",");
-  Serial.print(rightNow.hour(), DEC);
-  Serial.print(",");
-  Serial.print(rightNow.minute(), DEC);
-  Serial.print(",");
-  Serial.print(rightNow.second(), DEC);
-  Serial.print(",");
-  Serial.println(dataToLog);
+  //Add the log entry to the end of logevents.csv
+  appendFile(SPIFFS, "/logEvents.csv", logEntry);
+
+  // Output the logEvents - FOR DEBUG ONLY. Comment out to avoid spamming the serial monitor.
+  //  readFile(SPIFFS, "/logEvents.csv");
+
+  Serial.print("\nEvent Logged: ");
+  Serial.println(logEntry);
 }
+
 
 //This is a function used to get the soil moisture content
 int readSoil()
@@ -289,28 +222,69 @@ void waterPlant(int moistureValue) {
 
 }
 
-String readFile(fs::FS &fs, const char * path) {
-  Serial.printf("Reading file: %s\n", path);
-  char c;
-  String tempHTML = "";
+
+void readFile(fs::FS &fs, const char * path) {
+  Serial.printf("Reading file: %s\r\n", path);
 
   File file = fs.open(path);
-  if (!file) {
-    Serial.print("Failed to open file for reading: ");
-    Serial.println(path);
-    return "";
+  if (!file || file.isDirectory()) {
+    Serial.println("- failed to open file for reading");
+    return;
   }
 
+  Serial.println("- read from file:");
   while (file.available()) {
-    c = file.read();
-    tempHTML += c;
+    Serial.write(file.read());
   }
   file.close();
-  return tempHTML;
 }
 
-void loadHTML() {
-  homepage = readFile(SD, "/index.html");
-  dashboard = readFile(SD, "/dashboard.html");
-  forgot = readFile(SD, "/forgot.html");
+void writeFile(fs::FS &fs, const char * path, const char * message) {
+  Serial.printf("Writing file: %s\r\n", path);
+
+  File file = fs.open(path, FILE_WRITE);
+  if (!file) {
+    Serial.println("- failed to open file for writing");
+    return;
+  }
+  if (file.print(message)) {
+    Serial.println("- file written");
+  } else {
+    Serial.println("- write failed");
+  }
+  file.close();
+}
+
+void appendFile(fs::FS &fs, const char * path, const char * message) {
+  Serial.printf("Appending to file: %s\r\n", path);
+
+  File file = fs.open(path, FILE_APPEND);
+  if (!file) {
+    Serial.println("- failed to open file for appending");
+    return;
+  }
+  if (file.print(message)) {
+    Serial.println("- message appended");
+  } else {
+    Serial.println("- append failed");
+  }
+  file.close();
+}
+
+void renameFile(fs::FS &fs, const char * path1, const char * path2) {
+  Serial.printf("Renaming file %s to %s\r\n", path1, path2);
+  if (fs.rename(path1, path2)) {
+    Serial.println("- file renamed");
+  } else {
+    Serial.println("- rename failed");
+  }
+}
+
+void deleteFile(fs::FS &fs, const char * path) {
+  Serial.printf("Deleting file: %s\r\n", path);
+  if (fs.remove(path)) {
+    Serial.println("- file deleted");
+  } else {
+    Serial.println("- delete failed");
+  }
 }
