@@ -78,7 +78,7 @@ void setup() {
   });
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("dashboard");
-    request->send(SPIFFS, "/dashbo  ard.html", "text/html");
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
   });
   server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("output");
@@ -113,19 +113,18 @@ void loop() {
   int moisture = readSoil();
   waterPlant(moisture);
 
-
   // Gets the current date and time, and writes it to the Eink display.
   String currentTime = getDateTimeAsString();
 
-  drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
-
-  // writes the current time on the bottom half of the display (y is height)
-  drawText(currentTime, EPD_BLACK, 2, 0, 75);
-
+  drawText(WiFi.localIP().toString(), EPD_BLACK, 2, 0, 0);
+  
   // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
-  display.drawLine(0, 50, 250, 50, EPD_BLACK);
+  display.drawLine(0, 25, 250, 25, EPD_BLACK);
+  
+  // writes the current time on the bottom half of the display (y is height)
+  drawText(currentTime, EPD_BLACK, 2, 0, 30);
 
-  drawText(String(moisture), EPD_BLACK, 2, 0, 100);
+  drawText("Moisture :" + String(moisture), EPD_BLACK, 2, 0, 50);
   display.display();
 
   logEvent("Updating the EPD");
@@ -133,6 +132,16 @@ void loop() {
   delay(180000);
   display.clearBuffer();
 
+}
+
+String processor(const String& var) {
+  Serial.println(var);
+  if (var == "MOISTURE") {
+    Serial.println("moisture processing");
+    readSoil();
+    return String(moistureValue);
+  }
+  return String();
 }
 
 void drawText(String text, uint16_t color, int textSize, int x, int y) {

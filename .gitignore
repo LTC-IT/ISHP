@@ -4,3 +4,9 @@ ISHP/wifiConfig.h
 ISHP/wifiConfig.h
 *.h
 ISHP/wifiConfig.h
+CMakeLists.txt
+.idea/vcs.xml
+.idea/modules.xml
+.idea/misc.xml
+.idea/ISHP2.iml
+.idea/ISHP.iml
