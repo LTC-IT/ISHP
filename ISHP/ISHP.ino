@@ -40,10 +40,17 @@ ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 #include <Adafruit_MotorShield.h>
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
+boolean pumpIsRunning = false;
 
 // Soil Moisture
 int moistureValue = 0; //value for storing moisture value
 int soilPin = A2;//Declare a variable for the soil moisture sensor
+
+//Temperature Sensor
+#include <Wire.h>
+#include "Adafruit_ADT7410.h"
+// Create the ADT7410 temperature sensor object
+Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 
 void setup() {
   Serial.begin(9600);
@@ -58,6 +65,10 @@ void setup() {
     // https://github.com/me-no-dev/arduino-esp32fs-plugin
     Serial.println("SPIFFS Mount Failed");
     return;
+  }
+  if (!tempsensor.begin()) {
+    Serial.println("Couldn't find ADT7410!");
+    while (1);
   }
 
   WiFi.begin(ssid, password);
@@ -82,7 +93,7 @@ void setup() {
   });
   server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("output");
-    request->send(SPIFFS, "/logEvents.csv", "text/html");
+    request->send(SPIFFS, "/logEvents.csv", "text/html", true);
   });
 
   server.begin();
@@ -112,34 +123,65 @@ void setup() {
 void loop() {
   int moisture = readSoil();
   waterPlant(moisture);
+  updateEPD();
 
-  // Gets the current date and time, and writes it to the Eink display.
-  String currentTime = getDateTimeAsString();
 
-  drawText(WiFi.localIP().toString(), EPD_BLACK, 2, 0, 0);
-  
-  // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
-  display.drawLine(0, 25, 250, 25, EPD_BLACK);
-  
-  // writes the current time on the bottom half of the display (y is height)
-  drawText(currentTime, EPD_BLACK, 2, 0, 30);
-
-  drawText("Moisture :" + String(moisture), EPD_BLACK, 2, 0, 50);
-  display.display();
-
-  logEvent("Updating the EPD");
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
   display.clearBuffer();
 
 }
 
+void updateEPD() {
+  // Config
+  drawText(WiFi.localIP().toString(), EPD_BLACK, 2, 0, 0);
+  drawText(getTimeAsString(), EPD_BLACK, 1, 200, 0);
+  drawText(getDateAsString(), EPD_BLACK, 1, 190, 10);
+
+
+  // Draw lines to divvy up the EPD
+  display.drawLine(0, 20, 250, 20, EPD_BLACK);
+  display.drawLine(125, 20, 125, 122, EPD_BLACK);
+  display.drawLine(0, 75, 250, 75, EPD_BLACK);
+
+  drawText("Moisture", EPD_BLACK, 2, 0, 25);
+  drawText(String(moistureValue), EPD_BLACK, 4, 0, 45);
+
+  drawText("Pump", EPD_BLACK, 2, 130, 25);
+  if (pumpIsRunning) {
+    drawText("ON", EPD_BLACK, 4, 130, 45);
+  } else {
+    drawText("OFF", EPD_BLACK, 4, 130, 45);
+  }
+
+  drawText("Temp \tC", EPD_BLACK, 2, 0, 80);
+  drawText(String(tempsensor.readTempC()), EPD_BLACK, 4, 0, 95);
+
+  logEvent("Updating the EPD");
+  display.display();
+
+}
+
 String processor(const String& var) {
   Serial.println(var);
+  
+  if (var == "DATETIME") {
+    String datetime = getTimeAsString() + " " + getDateAsString();
+    return datetime;
+  }
   if (var == "MOISTURE") {
-    Serial.println("moisture processing");
     readSoil();
     return String(moistureValue);
+  }
+  if (var == "TEMPINC") {
+    return String(tempsensor.readTempC());
+  }
+  if (var == "PUMPSTATE") {
+    if (pumpIsRunning) {
+      return "ON";
+    } else {
+      return "OFF";
+    }
   }
   return String();
 }
@@ -152,36 +194,25 @@ void drawText(String text, uint16_t color, int textSize, int x, int y) {
   display.print(text);
 }
 
-String getDateTimeAsString() {
+String getDateAsString() {
   DateTime now = rtc.now();
 
-  //Prints the date and time to the Serial monitor for debugging.
-  /*
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(" (");
-    Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-    Serial.print(") ");
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
-  */
-
-  // Converts the date and time into a human-readable format.
+  // Converts the date into a human-readable format.
   char humanReadableDate[20];
-  sprintf(humanReadableDate, "%02d:%02d:%02d %02d/%02d/%02d",  now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
+  sprintf(humanReadableDate, "%02d/%02d/%02d", now.day(), now.month(), now.year());
 
   return humanReadableDate;
 }
 
+String getTimeAsString() {
+  DateTime now = rtc.now();
 
+  // Converts the time into a human-readable format.
+  char humanReadableTime[20];
+  sprintf(humanReadableTime, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
 
+  return humanReadableTime;
+}
 
 void logEvent(String dataToLog) {
   /*
@@ -224,9 +255,11 @@ void waterPlant(int moistureValue) {
   if (moistureValue < 1000 ) {
     // motor/pump on
     myMotor->run(FORWARD); // May need to change to BACKWARD
+    pumpIsRunning = true;
   } else {
     // motor/pump off
     myMotor->run(RELEASE);
+    pumpIsRunning = false;
   }
 
 }

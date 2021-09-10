@@ -10,3 +10,4 @@ CMakeLists.txt
 .idea/misc.xml
 .idea/ISHP2.iml
 .idea/ISHP.iml
+ISHP/wifiConfig.h
