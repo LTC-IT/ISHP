@@ -169,20 +169,7 @@ String processor(const String& var) {
     String datetime = getTimeAsString() + " " + getDateAsString();
     return datetime;
   }
-  if (var == "MOISTURE") {
-    readSoil();
-    return String(moistureValue);
-  }
-  if (var == "TEMPINC") {
-    return String(tempsensor.readTempC());
-  }
-  if (var == "PUMPSTATE") {
-    if (pumpIsRunning) {
-      return "ON";
-    } else {
-      return "OFF";
-    }
-  }
+  
   return String();
 }
 
