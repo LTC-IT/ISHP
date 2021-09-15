@@ -1,13 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+<style>
+.grid-container {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-gap: 10px;
+  background-color: #2196F3;
+  padding: 10px;
+}
+
+.grid-container > div {
+  background-color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  padding: 20px 0;
+  font-size: 30px;
+}
+
+.item1 {
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+
+</style>
 </head>
 <body>
-Date and Time: %DATETIME%
+
+<h1>ISHP Dashboard</h1>
+
+<div class="grid-container">
+  <div class="item1">ISHP</div>
+  <div class="item2">Date and Time<p>%DATETIME%</p></div>
+  <div class="item3">Moisture <p>%MOISTURE%</div>  
+  <div class="item4">Pump <p>%PUMPSTATE%</p></div>
+  <div class="item5">Temperature <p>%TEMPINC%</p></div>
+  <div class="item1">LogEvents<p><a href="/logOutput">Download</a></div>
+
+</div>
+
 
 </body>
 </html>
-
-

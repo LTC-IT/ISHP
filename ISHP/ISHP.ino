@@ -169,7 +169,20 @@ String processor(const String& var) {
     String datetime = getTimeAsString() + " " + getDateAsString();
     return datetime;
   }
-  
+  if (var == "MOISTURE") {
+    readSoil();
+    return String(moistureValue);
+  }
+  if (var == "TEMPINC") {
+    return String(tempsensor.readTempC());
+  }
+  if (var == "PUMPSTATE") {
+    if (pumpIsRunning) {
+      return "ON";
+    } else {
+      return "OFF";
+    }
+  }
   return String();
 }
 
@@ -238,6 +251,9 @@ void waterPlant(int moistureValue) {
      and if it's below a certain value, turns the pump on.
      The function is to be called waterPlant() which will
      take the moisture value as an argument, and return no value.
+
+     @param moistureValue int measured from Moisture Sensor
+     @return: void
   */
   if (moistureValue < 1000 ) {
     // motor/pump on
