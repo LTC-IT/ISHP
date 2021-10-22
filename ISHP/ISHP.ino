@@ -13,9 +13,13 @@
 // Wifi & Webserver
 #include "WiFi.h"
 #include "SPIFFS.h"
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "wifiConfig.h"
 AsyncWebServer server(80);
+
+const char* http_username = "admin1";
+const char* http_password = "admin1";
 
 // RTC
 #include "RTClib.h"
@@ -53,6 +57,10 @@ int soilPin = A2;//Declare a variable for the soil moisture sensor
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 
 void setup() {
+  /*
+
+
+  */
   Serial.begin(9600);
   while (!Serial) {
     delay(10);
@@ -78,19 +86,53 @@ void setup() {
     Serial.println("Connecting to WiFi..");
   }
   Serial.println();
-  Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.print("Connected to the Internet");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  pinMode(LED_BUILTIN, OUTPUT);
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("index");
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send(SPIFFS, "/index.html", "text/html");
   });
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("dashboard");
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
   });
+
+  //LED Control
+  server.on("/LEDOn", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    digitalWrite(LED_BUILTIN, HIGH);
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+  server.on("/LEDOff", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    digitalWrite(LED_BUILTIN, LOW);
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+
+  // Pump Control
+  server.on("/PumpOn", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    myMotor->run(FORWARD); // May need to change to BACKWARD
+    pumpIsRunning = true;
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+  server.on("/PumpOff", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    myMotor->run(RELEASE);
+    pumpIsRunning = false;
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+
   server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("output");
     request->send(SPIFFS, "/logEvents.csv", "text/html", true);
@@ -107,7 +149,7 @@ void setup() {
   }
 
   // The following line can be uncommented if the time needs to be reset.
-  //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
   rtc.start();
 
@@ -133,10 +175,15 @@ void loop() {
 }
 
 void updateEPD() {
+
+  // Indigenous Country Name
+  drawText("Namadgi", EPD_BLACK, 2, 0, 0);
+
+
   // Config
-  drawText(WiFi.localIP().toString(), EPD_BLACK, 2, 0, 0);
-  drawText(getTimeAsString(), EPD_BLACK, 1, 200, 0);
-  drawText(getDateAsString(), EPD_BLACK, 1, 190, 10);
+  drawText(WiFi.localIP().toString(), EPD_BLACK, 1, 130, 80);
+  drawText(getTimeAsString(), EPD_BLACK, 1, 130, 100);
+  drawText(getDateAsString(), EPD_BLACK, 1, 130, 110);
 
 
   // Draw lines to divvy up the EPD
@@ -164,7 +211,7 @@ void updateEPD() {
 
 String processor(const String& var) {
   Serial.println(var);
-  
+
   if (var == "DATETIME") {
     String datetime = getTimeAsString() + " " + getDateAsString();
     return datetime;
@@ -239,8 +286,8 @@ void logEvent(String dataToLog) {
 
 
 //This is a function used to get the soil moisture content
-int readSoil()
-{
+int readSoil() {
+  logEvent("Reading Moisture Value");
   moistureValue = analogRead(soilPin);//Read the SIG value form sensor
   return moistureValue;//send current moisture value
 }
